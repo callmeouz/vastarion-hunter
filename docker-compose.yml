@@ -1,0 +1,32 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:1234@db:5432/hunter_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretkey123
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: "hunter_db"
+    ports:
+      - "5433:5432"
+    volumes:
+      - hunter_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  hunter_data:
