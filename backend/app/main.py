@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from app.routers import auth, products
+from app.routers import auth, products, admin
 from app.database import engine, Base
 from app.models import user, product
 from slowapi import Limiter
@@ -43,6 +43,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(auth.router)
 app.include_router(products.router)
+app.include_router(admin.router)
 
 @app.get("/")
 @limiter.limit("10/minute")
