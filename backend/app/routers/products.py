@@ -7,8 +7,12 @@ from app.models.product import Product, PriceHistory, Tag, ProductTag
 from app.schemas.product import ProductCreate, ProductResponse, PriceHistoryResponse, TagCreate, TagResponse
 from app.utils.security import get_current_user_id
 from app.services.price_checker import check_all_prices
+import redis
+import json
 
 router = APIRouter(prefix="/products", tags=["Products"])
+
+redis_client = redis.from_url("redis://redis:6379/0")
 
 
 @router.post("/track", response_model=ProductResponse)
@@ -56,41 +60,9 @@ def trigger_price_check(user_id: int = Depends(get_current_user_id)):
 
 @router.get("/dashboard/stats")
 def get_dashboard(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    total_products = db.query(Product).filter(Product.user_id == user_id).count()
-    active_products = db.query(Product).filter(Product.user_id == user_id, Product.is_active == True).count()
-
-    deals = db.query(Product).filter(
-        Product.user_id == user_id,
-        Product.current_price != None,
-        Product.target_price != None,
-        Product.current_price <= Product.target_price
-    ).all()
-
-    biggest_drop = None
-    products = db.query(Product).filter(Product.user_id == user_id, Product.current_price != None).all()
-    for p in products:
-        history = db.query(PriceHistory).filter(PriceHistory.product_id == p.id).order_by(PriceHistory.checked_at).all()
-        if len(history) >= 2:
-            first_price = history[0].price
-            last_price = history[-1].price
-            drop = first_price - last_price
-            if biggest_drop is None or drop > biggest_drop["drop"]:
-                biggest_drop = {
-                    "name": p.name,
-                    "drop": round(drop, 2),
-                    "current": last_price,
-                    "first_seen": str(history[0].checked_at),
-                    "last_checked": str(history[-1].checked_at)
-                }
-
-    return {
-        "total_products": total_products,
-        "active_products": active_products,
-        "deals_found": len(deals),
-        "deals": [{"name": d.name, "price": d.current_price, "target": d.target_price} for d in deals],
-        "biggest_drop": biggest_drop,
-        "summary": f"{total_products} ürün takip ediliyor, {len(deals)} fırsat bulundu"
-    }
+    cache_key = f"dashboard:{user_id}"
+    cached = redis_client.get(cache_key)
+    if cached
 
 @router.post("/tags", response_model=TagResponse)
 def create_tag(tag_data: TagCreate, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
