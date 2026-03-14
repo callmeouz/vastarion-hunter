@@ -30,3 +30,22 @@ class PriceHistory(Base):
     checked_at = Column(DateTime(timezone=True), server_default=func.now())
 
     product = relationship("Product", back_populates="price_history")
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    user = relationship("User", backref="tags")
+
+class ProductTag(Base):
+    __tablename__ = "product_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    tag_id = Column(Integer, ForeignKey("tags.id"), nullable=False)
+
+    product = relationship("Product", backref="product_tags")
+    tag = relationship("Tag", backref="product_tags")
