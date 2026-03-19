@@ -62,7 +62,51 @@ def trigger_price_check(user_id: int = Depends(get_current_user_id)):
 def get_dashboard(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     cache_key = f"dashboard:{user_id}"
     cached = redis_client.get(cache_key)
-    if cached
+    if cached:
+        print(f" Dashboard cache hit for user {user_id}")
+        return json.loads(cached)
+
+    print(f" Dashboard cache miss for user {user_id}")
+
+    total_products = db.query(Product).filter(Product.user_id == user_id).count()
+    active_products = db.query(Product).filter(Product.user_id == user_id, Product.is_active == True).count()
+
+    deals = db.query(Product).filter(
+        Product.user_id == user_id,
+        Product.current_price != None,
+        Product.target_price != None,
+        Product.current_price <= Product.target_price
+    ).all()
+
+    biggest_drop = None
+    products = db.query(Product).filter(Product.user_id == user_id, Product.current_price != None).all()
+    for p in products:
+        history = db.query(PriceHistory).filter(PriceHistory.product_id == p.id).order_by(PriceHistory.checked_at).all()
+        if len(history) >= 2:
+            first_price = history[0].price
+            last_price = history[-1].price
+            drop = first_price - last_price
+            if biggest_drop is None or drop > biggest_drop["drop"]:
+                biggest_drop = {
+                    "name": p.name,
+                    "drop": round(drop, 2),
+                    "current": last_price,
+                    "first_seen": str(history[0].checked_at),
+                    "last_checked": str(history[-1].checked_at)
+                }
+
+    result = {
+        "total_products": total_products,
+        "active_products": active_products,
+        "deals_found": len(deals),
+        "deals": [{"name": d.name, "price": d.current_price, "target": d.target_price} for d in deals],
+        "biggest_drop": biggest_drop,
+        "summary": f"{total_products} products tracked, {len(deals)} deals found"
+    }
+
+    redis_client.setex(cache_key, 300, json.dumps(result, default=str))
+
+    return result
 
 @router.post("/tags", response_model=TagResponse)
 def create_tag(tag_data: TagCreate, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
