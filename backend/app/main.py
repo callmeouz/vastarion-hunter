@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.routers import auth, products, admin
@@ -21,6 +22,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
 app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)
@@ -40,6 +42,14 @@ async def log_requests(request: Request, call_next):
     duration = round(time.time() - start_time, 3)
     logger.info(f"{request.method} {request.url.path} → {response.status_code} ({duration}s)")
     return response
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 app.include_router(auth.router)
 app.include_router(products.router)
