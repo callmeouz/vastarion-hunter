@@ -8,6 +8,8 @@ function Dashboard({ onLogout }) {
   const [name, setName] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [message, setMessage] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -56,6 +58,32 @@ function Dashboard({ onLogout }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     onLogout();
+  };
+
+  const viewHistory = async (product) => {
+    if (selectedProduct?.id === product.id) {
+      setSelectedProduct(null);
+      setHistory([]);
+      return;
+    }
+    try {
+      const res = await API.get(`/products/${product.id}/history`);
+      setHistory(res.data);
+      setSelectedProduct(product);
+    } catch (err) {
+      console.error('Failed to load history');
+    }
+  };
+
+  const stopTracking = async (productId) => {
+    try {
+      await API.delete(`/products/${productId}`);
+      setMessage('Tracking stopped');
+      setSelectedProduct(null);
+      loadData();
+    } catch (err) {
+      setMessage('Failed to stop tracking');
+    }
   };
 
   return (
@@ -117,13 +145,38 @@ function Dashboard({ onLogout }) {
         </div>
         <div className="products-list">
           {products.map((product) => (
-            <div key={product.id} className="product-card">
-              <h3>{product.name}</h3>
-              <p>Current: {product.current_price ? `${product.current_price} TL` : 'Not checked yet'}</p>
-              <p>Target: {product.target_price ? `${product.target_price} TL` : 'No target'}</p>
-              <span className={product.is_active ? 'active' : 'inactive'}>
-                {product.is_active ? 'Active' : 'Inactive'}
-              </span>
+            <div key={product.id} className={`product-card ${selectedProduct?.id === product.id ? 'selected' : ''}`}>
+              <div onClick={() => viewHistory(product)} className="product-clickable">
+                <h3>{product.name}</h3>
+                <p>Current: {product.current_price ? `${product.current_price} TL` : 'Not checked yet'}</p>
+                <p>Target: {product.target_price ? `${product.target_price} TL` : 'No target'}</p>
+                <span className={product.is_active ? 'active' : 'inactive'}>
+                  {product.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              {selectedProduct?.id === product.id && (
+                <div className="history-panel">
+                  <h4>Price History</h4>
+                  {history.length > 0 ? (
+                    <div className="history-list">
+                      {history.map((h) => (
+                        <div key={h.id} className="history-item">
+                          <span>{h.price} TL</span>
+                          <span className="history-date">
+                            {new Date(h.checked_at).toLocaleDateString('tr-TR')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-history">No price history yet</p>
+                  )}
+                  <button onClick={() => stopTracking(product.id)} className="stop-btn">
+                    Stop Tracking
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
