@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Login from './pages/Login';
+import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import './App.css';
 
@@ -8,15 +8,11 @@ function App() {
     localStorage.getItem('token') ? true : false
   );
 
-  return (
-    <div className="App">
-      {isLoggedIn ? (
-        <Dashboard onLogout={() => setIsLoggedIn(false)} />
-      ) : (
-        <Login onLogin={() => setIsLoggedIn(true)} />
-      )}
-    </div>
-  );
+  if (isLoggedIn) {
+    return <Dashboard onLogout={() => setIsLoggedIn(false)} />;
+  }
+
+  return <AuthPage onLogin={() => setIsLoggedIn(true)} />;
 }
 
 export default App;
